@@ -2,10 +2,11 @@ import numpy as np
 from scipy.spatial import distance as dist
 import cv2
 import logging
+from ..configs.config import Config
 
 class FacialAnalyzer:
-    def __init__(self, config):
-        self.config = config
+    def __init__(self):
+        self.config = Config()
         self.min_ear = 0.15
         self.max_ear = 0.40
 

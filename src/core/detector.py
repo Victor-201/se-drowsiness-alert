@@ -13,9 +13,9 @@ from .alert_system import AlertSystem
 class DrowsinessDetector:
     def __init__(self):
         self.config = Config()
-        self.model_manager = ModelManager(self.config)
-        self.analyzer = FacialAnalyzer(self.config)
-        self.alert_system = AlertSystem(self.config)
+        self.model_manager = ModelManager()
+        self.analyzer = FacialAnalyzer()
+        self.alert_system = AlertSystem()
         
         self.camera = None
         self.EYE_AR_THRESH = self.config.EAR_THRESHOLD

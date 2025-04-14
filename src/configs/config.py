@@ -6,7 +6,7 @@ import logging
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class Config:
-    EAR_THRESHOLD = 0.2
+    EAR_THRESHOLD = 0.22
     MAR_THRESHOLD = 0.5
     EAR_CONSEC_FRAMES = 15  
     BLINK_CONSEC_FRAMES = 3

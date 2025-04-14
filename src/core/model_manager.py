@@ -2,10 +2,11 @@ import urllib.request
 import bz2
 import os
 import dlib
+from ..configs.config import Config
 
 class ModelManager:
-    def __init__(self, config):
-        self.config = config
+    def __init__(self):
+        self.config = Config()
         self._detector = None
         self._predictor = None
 

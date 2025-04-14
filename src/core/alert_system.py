@@ -3,10 +3,11 @@ import numpy as np
 import time
 from playsound import playsound
 import threading
+from ..configs.config import Config
 
 class AlertSystem:
-    def __init__(self, config):
-        self.config = config
+    def __init__(self):
+        self.config = Config()
         self.alert_cooldown = self.config.ALERT_COOLDOWN  
         self.last_alert_time = 0 
 
