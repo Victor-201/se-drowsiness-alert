@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
 import time
-from playsound import playsound
+import winsound
 import threading
-from ..configs.config import Config
+from src.configs.config import Config
 
 class AlertSystem:
     def __init__(self):
@@ -13,7 +13,8 @@ class AlertSystem:
 
     def _play_sound(self):
         if self.config.SOUND_ENABLED and self.config.ALERT_SOUND_FILE:
-            playsound(self.config.ALERT_SOUND_FILE)
+            winsound.PlaySound(self.config.ALERT_SOUND_FILE,winsound.SND_FILENAME)
+
 
     def play_alert_sound(self):
         # Phát âm thanh cảnh báo nếu đã qua thời gian chờ

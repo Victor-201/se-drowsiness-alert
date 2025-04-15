@@ -20,6 +20,8 @@ class Config:
     CAMERA_HEIGHT = 480
     CAMERA_FPS = 30
 
+    SOUND_ENABLED = True
+
     PRIMARY_COLOR = (0, 255, 0)
     ALERT_COLOR = (0, 0, 255)
     TEXT_COLOR = (255, 255, 255)
@@ -28,7 +30,7 @@ class Config:
     MODEL_FILE = os.path.join(DATA_DIR,"shape_predictor_68_face_landmarks.dat")
     CALIB_FILE = os.path.join(DATA_DIR,"calibration.pkl")
     ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
-    ALERT_SOUND_FILE = os.path.join(ASSETS_DIR, "alert.wav")
+    ALERT_SOUND_FILE = os.path.join(ASSETS_DIR, "alert.mp3")
 
     # Chỉ số landmarks khuôn mặt
     FACIAL_LANDMARKS_INDEXES = {

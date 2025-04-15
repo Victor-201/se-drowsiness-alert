@@ -54,17 +54,17 @@ class DrowsinessDetectorApp(App):
         Clock.schedule_interval(self.update, 1.0 / 30.0)
         return layout
 
-    def start_monitoring(self, instance):
+    def start_monitoring(self):
         self.is_monitoring = True
         self.status_label.text = 'Status: Monitoring'
 
-    def stop_monitoring(self, instance):
+    def stop_monitoring(self):
         self.is_monitoring = False
         self.status_label.text = 'Status: Stopped'
         self.image.texture = None
         self.alert_sound.stop()
 
-    def update(self, dt):
+    def update(self):
         if not self.is_monitoring:
             return
         
@@ -96,7 +96,7 @@ class DrowsinessDetectorApp(App):
             self.alert_stop_timer.cancel()
             self.alert_stop_timer = None
 
-    def stop_alert(self, dt):
+    def stop_alert(self):
         logging.info("Dừng âm thanh cảnh báo")
         self.alert_active = False
         if self.alert_sound:
