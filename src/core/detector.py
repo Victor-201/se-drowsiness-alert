@@ -145,6 +145,28 @@ class DrowsinessDetector:
 
         return blinks_in_window >= self.BLINK_FREQUENCY_THRESHOLD
 
+    @staticmethod
+    def find_largest_face(faces):
+        """Tìm khuôn mặt lớn nhất trong danh sách faces được phát hiện"""
+        if not faces:
+            return None
+
+        # Tìm khuôn mặt có diện tích lớn nhất
+        largest_face = None
+        largest_area = 0
+
+        for face in faces:
+            # Tính diện tích khuôn mặt
+            width = face.right() - face.left()
+            height = face.bottom() - face.top()
+            area = width * height
+
+            if area > largest_area:
+                largest_area = area
+                largest_face = face
+
+        return largest_face
+
     def process_frame(self):
         if not self.camera:
             logging.error("Camera chưa khởi tạo")
@@ -182,13 +204,16 @@ class DrowsinessDetector:
         head_tilt_detected = False
         rapid_blink_detected = False
 
-        for face in faces:
-            # Lấy facial landmarks
-            shape = self.landmark_predictor(gray, face)
+        # Tìm khuôn mặt lớn nhất trong khung hình
+        largest_face = self.find_largest_face(faces)
+
+        if largest_face:
+            # Lấy facial landmarks cho khuôn mặt lớn nhất
+            shape = self.landmark_predictor(gray, largest_face)
             shape_np = np.array([[p.x, p.y] for p in shape.parts()])
 
             # Vẽ khung khuôn mặt
-            x1, y1, x2, y2 = face.left(), face.top(), face.right(), face.bottom()
+            x1, y1, x2, y2 = largest_face.left(), largest_face.top(), largest_face.right(), largest_face.bottom()
             cv2.rectangle(frame, (x1, y1), (x2, y2), self.config.PRIMARY_COLOR, 2)
 
             # Vẽ facial landmarks
@@ -269,6 +294,10 @@ class DrowsinessDetector:
             # Hiển thị cảnh báo nháy mắt nhanh
             if rapid_blink_detected:
                 self.render_rapid_blink_alert(frame)
+
+        # Hiển thị số lượng khuôn mặt phát hiện được
+        cv2.putText(frame, f"Faces: {len(faces)} (Processing largest)",
+                    (frame.shape[1] - 250, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.config.TEXT_COLOR, 1)
 
         # Hiển thị frame
         self.analyzer.show_camera_feed(frame)
@@ -354,24 +383,26 @@ class DrowsinessDetector:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = self.face_detector(gray)
 
-            if faces:
-                for face in faces:
-                    shape = self.landmark_predictor(gray, face)
-                    shape_np = np.array([[p.x, p.y] for p in shape.parts()])
+            # Chỉ xử lý khuôn mặt lớn nhất
+            largest_face = self.find_largest_face(faces)
 
-                    left_eye, right_eye = shape_np[36:42], shape_np[42:48]
-                    left_ear = self.calculate_ear(left_eye)
-                    right_ear = self.calculate_ear(right_eye)
-                    ear = (left_ear + right_ear) / 2.0
-                    ear_values.append(ear)
+            if largest_face:
+                shape = self.landmark_predictor(gray, largest_face)
+                shape_np = np.array([[p.x, p.y] for p in shape.parts()])
 
-                    cv2.putText(frame, f"Calibrating... {int(duration - (time.time() - start_time))}s",
-                                (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                    cv2.putText(frame, f"Current EAR: {ear:.2f}",
-                                (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                left_eye, right_eye = shape_np[36:42], shape_np[42:48]
+                left_ear = self.calculate_ear(left_eye)
+                right_ear = self.calculate_ear(right_eye)
+                ear = (left_ear + right_ear) / 2.0
+                ear_values.append(ear)
 
-                    # Vẽ facial landmarks
-                    self.draw_facial_ratios(frame, shape_np)
+                cv2.putText(frame, f"Calibrating... {int(duration - (time.time() - start_time))}s",
+                            (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(frame, f"Current EAR: {ear:.2f}",
+                            (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                # Vẽ facial landmarks
+                self.draw_facial_ratios(frame, shape_np)
 
             cv2.imshow("Calibration", frame)
             key = cv2.waitKey(1) & 0xFF
