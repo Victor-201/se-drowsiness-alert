@@ -1,82 +1,54 @@
-# src/core/model_manager.py
+import os
 import urllib.request
 import bz2
-import os
 import dlib
 import logging
 from src.configs.config import Config
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
+logger = logging.getLogger(__name__)
 
 class ModelManager:
     def __init__(self):
-        """
-        Initialize the ModelManager with configuration and model references.
-        """
+        # Khởi tạo với cấu hình và các tham chiếu model
         self.config = Config()
         self._detector = None
         self._predictor = None
 
     def download_model(self):
-        """
-        Download and decompress the facial landmark model if not already present.
-        Returns the path to the model file.
-        """
-        model_file = self.config.MODEL_FILE
+        # Tải và giải nén model nhận diện khuôn mặt nếu chưa có
+        model_file = self.config.MODEL_DAT
         model_bz2 = model_file + ".bz2"
-
-        # Ensure the data directory exists
         os.makedirs(self.config.DATA_DIR, exist_ok=True)
 
         if not os.path.exists(model_file):
-            logging.info(f"Model not found at {model_file}. Downloading...")
+            logger.info(f"Tải model về {model_file}")
             try:
-                # Download the compressed model
-                urllib.request.urlretrieve(self.config.MODEL_URL, model_bz2)
-                logging.info("Model downloaded successfully")
-
-                # Decompress the model
+                urllib.request.urlretrieve(self.config.MODEL_DAT_BZ2, model_bz2)
                 with open(model_file, 'wb') as new_file, bz2.BZ2File(model_bz2, 'rb') as file:
-                    for data in iter(lambda: file.read(100 * 1024), b''):
-                        new_file.write(data)
-                logging.info(f"Model decompressed to {model_file}")
-
-                # Remove the compressed file
-                os.remove(model_bz2)
-                logging.info("Cleaned up compressed file")
+                    new_file.write(file.read())  # Giải nén file
+                os.remove(model_bz2)  # Xóa file nén
+                logger.info(f"Model được tải và giải nén tới {model_file}")
             except Exception as e:
-                logging.error(f"Failed to download or decompress model: {e}")
+                logger.error(f"Tải hoặc giải nén model thất bại: {e}")
                 raise
-        else:
-            logging.info(f"Model already exists at {model_file}")
-
         return model_file
 
     @property
     def detector(self):
-        """
-        Lazily initialize and return the dlib face detector.
-        """
+        # Khởi tạo và trả về detector khuôn mặt
         if self._detector is None:
-            logging.info("Initializing face detector")
+            logger.info("Khởi tạo detector khuôn mặt")
             self._detector = dlib.get_frontal_face_detector()
         return self._detector
 
     @property
     def predictor(self):
-        """
-        Lazily initialize and return the dlib shape predictor.
-        """
+        # Khởi tạo và trả về predictor đặc điểm khuôn mặt
         if self._predictor is None:
-            logging.info("Initializing shape predictor")
+            logger.info("Khởi tạo predictor đặc điểm khuôn mặt")
             try:
                 self._predictor = dlib.shape_predictor(self.download_model())
             except Exception as e:
-                logging.error(f"Failed to initialize shape predictor: {e}")
+                logger.error(f"Khởi tạo predictor thất bại: {e}")
                 raise
         return self._predictor
