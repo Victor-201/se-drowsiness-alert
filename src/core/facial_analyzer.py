@@ -60,14 +60,6 @@ class FacialAnalyzer:
         pitch_angle = degrees(atan2(nose_to_mouth[1], nose_to_mouth[0])) - 90
         return abs(roll_angle), abs(pitch_angle)
 
-    def show_camera_feed(self, frame):
-        # Hiển thị khung hình từ camera
-        if frame is None:
-            logger.warning("Khung hình rỗng")
-            return
-        cv2.imshow("Phát hiện buồn ngủ", frame)
-        return cv2.waitKey(1) & 0xFF
-
     def reset_display(self):
         # Đóng tất cả cửa sổ hiển thị
         cv2.destroyAllWindows()

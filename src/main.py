@@ -2,7 +2,7 @@ import logging
 from src.ui.app import DrowsinessDetectorApp
 
 def setup_logging():
-    # Thiết lập cấu hình logging để ghi log ra console và file
+    # Cấu hình logging để ghi log ra console và file
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -13,10 +13,10 @@ def setup_logging():
     )
 
 if __name__ == '__main__':
-    # Khởi động ứng dụng
+    # Chạy ứng dụng
     setup_logging()
     try:
         app = DrowsinessDetectorApp()
-        app.run()  # Chạy ứng dụng Kivy
+        app.run()
     except Exception as e:
-        logging.error(f"Ứng dụng gặp lỗi: {e}")
+        logging.error(f"Lỗi xảy ra trong ứng dụng: {e}")
