@@ -5,6 +5,11 @@ __pycache__/
 *.pkl
 *.dat
 *.bz2
+data/test_*
+data/*.json
+pipeline_output/
+debug_*.png
+NhomB.ipynb
 .venv/
 venv/
 env/
