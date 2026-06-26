@@ -32,6 +32,8 @@ class Config:
     TEXT_COLOR = (255, 255, 255)
     DATA_DIR = os.path.join(PROJECT_ROOT, "data")
     MODEL_DAT = os.path.join(DATA_DIR, "shape_predictor_68_face_landmarks.dat")
+    MODEL_DAT_BZ2 = MODEL_DAT + ".bz2"
+    MODEL_DAT_URL = "http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2"
     ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
     IMAGE_DIR = os.path.join(ASSETS_DIR, "images")
     SOUND_DIR = os.path.join(ASSETS_DIR, "sounds")

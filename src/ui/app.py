@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 class DrowsinessDetectorApp(App):
     def __init__(self):
         super().__init__()
-        # Khởi tạo các thành phần của ứng dụng
         self.config = Config()
         self.detector = DrowsinessDetector()
         self.image = Image(size_hint=(1, 1))
@@ -46,7 +45,6 @@ class DrowsinessDetectorApp(App):
         }
 
     def initialize_app(self):
-        # Khởi tạo trạng thái ban đầu của ứng dụng
         self.camera_initialized = False
         self.alert_sound = None
         self.fatigue_sound = None
@@ -56,7 +54,6 @@ class DrowsinessDetectorApp(App):
         logger.info(f"Camera khả dụng: {self.settings.get_available_cameras()}")
 
     def setup_alert_sound(self):
-        # Thiết lập âm thanh cảnh báo
         default_sound = os.path.join(self.sound_alert_dir, "alert.wav")
         sound_path = (
             os.path.join(self.sound_alert_dir, self.settings.alert_sound_file)

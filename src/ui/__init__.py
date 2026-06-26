@@ -1,1 +1,1 @@
-from src.ui.app import DrowsinessApp
+from src.ui.app import DrowsinessDetectorApp

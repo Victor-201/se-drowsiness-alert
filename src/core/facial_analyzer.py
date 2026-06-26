@@ -10,118 +10,118 @@ def euclidean_distance(a, b):
     return np.sqrt(np.sum(diff * diff))
 
 
-def tao_kernel_gaussian(sigma):
+def _gaussian_kernel(sigma):
     r = int(np.ceil(3 * sigma))
-    truc = np.arange(-r, r + 1, dtype=np.float64)
-    xx, yy = np.meshgrid(truc, truc)
+    axis = np.arange(-r, r + 1, dtype=np.float64)
+    xx, yy = np.meshgrid(axis, axis)
     kernel = np.exp(-(xx ** 2 + yy ** 2) / (2 * sigma ** 2))
     return kernel / kernel.sum()
 
 
-def tich_chap_2d(anh, kernel):
+def _convolve2d(image, kernel):
     kH, kW = kernel.shape
     pH, pW = kH // 2, kW // 2
-    anh_pad = np.pad(anh.astype(np.float64), ((pH, pH), (pW, pW)), mode='reflect')
-    H, W = anh.shape
+    padded = np.pad(image.astype(np.float64), ((pH, pH), (pW, pW)), mode='reflect')
+    H, W = image.shape
     shape = (H, W, kH, kW)
-    strides = (anh_pad.strides[0], anh_pad.strides[1],
-               anh_pad.strides[0], anh_pad.strides[1])
-    cua_so = np.lib.stride_tricks.as_strided(anh_pad, shape=shape, strides=strides)
-    return np.einsum('ijkl,kl->ij', cua_so, kernel)
+    strides = (padded.strides[0], padded.strides[1],
+               padded.strides[0], padded.strides[1])
+    windows = np.lib.stride_tricks.as_strided(padded, shape=shape, strides=strides)
+    return np.einsum('ijkl,kl->ij', windows, kernel)
 
 
-KERN_X = np.array([[-1, 0, 1],
-                   [-2, 0, 2],
-                   [-1, 0, 1]], dtype=np.float64)
+_SOBEL_X = np.array([[-1, 0, 1],
+                     [-2, 0, 2],
+                     [-1, 0, 1]], dtype=np.float64)
 
-KERN_Y = np.array([[-1, -2, -1],
-                   [0, 0, 0],
-                   [1, 2, 1]], dtype=np.float64)
+_SOBEL_Y = np.array([[-1, -2, -1],
+                     [0, 0, 0],
+                     [1, 2, 1]], dtype=np.float64)
 
 
-def tinh_gradient(anh_mo):
-    Gx = tich_chap_2d(anh_mo, KERN_X)
-    Gy = tich_chap_2d(anh_mo, KERN_Y)
+def _compute_gradient(smoothed):
+    Gx = _convolve2d(smoothed, _SOBEL_X)
+    Gy = _convolve2d(smoothed, _SOBEL_Y)
     M = np.hypot(Gx, Gy)
     theta = np.degrees(np.arctan2(Gy, Gx)) % 180
     return Gx, Gy, M, theta
 
 
-def non_max_suppression(M, theta):
+def _non_max_suppression(M, theta):
     H, W = M.shape
-    ket_qua = np.zeros_like(M)
-    huong = np.zeros_like(theta, dtype=np.int8)
-    huong[(theta >= 22.5) & (theta < 67.5)] = 1
-    huong[(theta >= 67.5) & (theta < 112.5)] = 2
-    huong[(theta >= 112.5) & (theta < 157.5)] = 3
-    cac_huong = {0: (0, 1), 1: (-1, 1), 2: (-1, 0), 3: (-1, -1)}
-    for d, (dy, dx) in cac_huong.items():
-        mat_na = (huong == d)
+    result = np.zeros_like(M)
+    direction = np.zeros_like(theta, dtype=np.int8)
+    direction[(theta >= 22.5) & (theta < 67.5)] = 1
+    direction[(theta >= 67.5) & (theta < 112.5)] = 2
+    direction[(theta >= 112.5) & (theta < 157.5)] = 3
+    dir_map = {0: (0, 1), 1: (-1, 1), 2: (-1, 0), 3: (-1, -1)}
+    for d, (dy, dx) in dir_map.items():
+        mask = (direction == d)
         r1 = np.clip(np.arange(H)[:, None] + dy, 0, H - 1)
         c1 = np.clip(np.arange(W)[None, :] + dx, 0, W - 1)
         r2 = np.clip(np.arange(H)[:, None] - dy, 0, H - 1)
         c2 = np.clip(np.arange(W)[None, :] - dx, 0, W - 1)
-        giu = mat_na & (M >= M[r1, c1]) & (M >= M[r2, c2])
-        ket_qua[giu] = M[giu]
-    return ket_qua
+        keep = mask & (M >= M[r1, c1]) & (M >= M[r2, c2])
+        result[keep] = M[keep]
+    return result
 
 
-def hysteresis(nms_map, tau_low, tau_high):
-    manh = nms_map >= tau_high
-    yeu = (nms_map >= tau_low) & ~manh
-    ket_qua = manh.copy()
+def _hysteresis(nms_map, low, high):
+    strong = nms_map >= high
+    weak = (nms_map >= low) & ~strong
+    result = strong.copy()
     H, W = nms_map.shape
     from collections import deque
-    q = deque(zip(*np.where(manh)))
+    q = deque(zip(*np.where(strong)))
     while q:
         y, x = q.popleft()
         y0, y1 = max(0, y - 1), min(H, y + 2)
         x0, x1 = max(0, x - 1), min(W, x + 2)
         for ny in range(y0, y1):
             for nx in range(x0, x1):
-                if (ny == y and nx == x) or not yeu[ny, nx] or ket_qua[ny, nx]:
+                if (ny == y and nx == x) or not weak[ny, nx] or result[ny, nx]:
                     continue
-                ket_qua[ny, nx] = True
+                result[ny, nx] = True
                 q.append((ny, nx))
-    return ket_qua.astype(np.uint8) * 255
+    return result.astype(np.uint8) * 255
 
 
-def otsu_threshold(nms_map):
-    pixel_khac0 = nms_map[nms_map > 0]
-    if len(pixel_khac0) == 0:
+def _otsu_threshold(nms_map):
+    nonzero = nms_map[nms_map > 0]
+    if len(nonzero) == 0:
         return 50, 25
     max_val = nms_map.max()
     if max_val == 0:
         return 50, 25
-    pixel_u8 = (pixel_khac0 / max_val * 255).astype(np.uint8)
+    pixel_u8 = (nonzero / max_val * 255).astype(np.uint8)
     hist = np.bincount(pixel_u8, minlength=256).astype(np.float64)
-    tong = hist.sum()
+    total = hist.sum()
     bins = np.arange(256, dtype=np.float64)
-    cum_w = np.cumsum(hist) / tong
-    cum_mu = np.cumsum(hist * bins) / tong
+    cum_w = np.cumsum(hist) / total
+    cum_mu = np.cumsum(hist * bins) / total
     mu_all = cum_mu[-1]
     w0 = cum_w
     w1 = 1.0 - w0
     mu0 = np.where(w0 > 0, cum_mu / (w0 + 1e-12), 0)
     mu1 = np.where(w1 > 0, (mu_all - cum_mu) / (w1 + 1e-12), 0)
-    phuong_sai = w0 * w1 * (mu0 - mu1) ** 2
-    t_opt = int(np.argmax(phuong_sai))
-    tau_h = t_opt / 255.0 * max_val
-    tau_l = tau_h / 2.0
-    return max(tau_h, 10), max(tau_l, 5)
+    variance = w0 * w1 * (mu0 - mu1) ** 2
+    t_opt = int(np.argmax(variance))
+    h = t_opt / 255.0 * max_val
+    l = h / 2.0
+    return max(h, 10), max(l, 5)
 
 
 def manual_canny(gray, sigma=0.8, low=None, high=None):
-    anh_mo = tich_chap_2d(gray, tao_kernel_gaussian(sigma))
-    _, _, M, theta = tinh_gradient(anh_mo)
-    nms = non_max_suppression(M, theta)
+    smoothed = _convolve2d(gray, _gaussian_kernel(sigma))
+    _, _, M, theta = _compute_gradient(smoothed)
+    nms = _non_max_suppression(M, theta)
     if low is None or high is None:
-        high, low = otsu_threshold(nms)
-    edges = hysteresis(nms, low, high)
+        high, low = _otsu_threshold(nms)
+    edges = _hysteresis(nms, low, high)
     return edges
 
 
-def manual_adaptive_histogram_equalization(gray, clip_limit=2.0, tile_grid_size=(8, 8)):
+def _clahe(gray, clip_limit=2.0, tile_grid_size=(8, 8)):
     gray = np.asarray(gray, dtype=np.float64)
     h, w = gray.shape
     t_h = h // tile_grid_size[0]
@@ -165,7 +165,7 @@ def manual_adaptive_histogram_equalization(gray, clip_limit=2.0, tile_grid_size=
     return np.clip(np.round(result), 0, 255).astype(np.uint8)
 
 
-def manual_bounding_rect(pts):
+def _bounding_rect(pts):
     xs = pts[:, 0]
     ys = pts[:, 1]
     x = int(xs.min())
@@ -175,19 +175,18 @@ def manual_bounding_rect(pts):
     return x, y, w, h
 
 
-def manual_largest_contour_area(binary):
-    labeled, _ = label_connected_components(binary)
+def _largest_blob_area(binary):
+    labeled, _ = _label_components(binary)
     if labeled is None:
         return 0
     labels = labeled[labeled > 0]
     if len(labels) == 0:
         return 0
     counts = np.bincount(labels)
-    largest_area = counts.max()
-    return int(largest_area)
+    return int(counts.max())
 
 
-def label_connected_components(binary):
+def _label_components(binary):
     binary = (binary > 0).astype(np.uint8)
     h, w = binary.shape
     labeled = np.zeros((h, w), dtype=np.int32)
@@ -241,21 +240,13 @@ def label_connected_components(binary):
     return remapped, len(unique)
 
 
-def manual_sobel_edges(gray):
-    gray_f = gray.astype(np.float64)
-    Gx = tich_chap_2d(gray_f, KERN_X)
-    Gy = tich_chap_2d(gray_f, KERN_Y)
-    M = np.hypot(Gx, Gy)
-    return np.clip(M, 0, 255).astype(np.uint8)
-
-
 class FacialAnalyzer:
     def __init__(self):
         self.min_ear = 0.15
         self.max_ear = 0.40
 
     def apply_clahe(self, gray_frame):
-        return manual_adaptive_histogram_equalization(gray_frame, clip_limit=2.0, tile_grid_size=(8, 8))
+        return _clahe(gray_frame, clip_limit=2.0, tile_grid_size=(8, 8))
 
     def calculate_ear(self, eye_points):
         points = np.array(eye_points, dtype=np.float32)
@@ -272,14 +263,9 @@ class FacialAnalyzer:
         D = euclidean_distance(mouth_points[12], mouth_points[16])
         return (A + B + C) / (3.0 * D) if D > 0 else 0.0
 
-    def eye_aspect_ratio_variance(self, ear_history, window_size=30):
-        if len(ear_history) < window_size:
-            return 0.0
-        return float(np.var(ear_history[-window_size:]))
-
     def extract_eye_roi(self, gray, eye_points, margin=10):
         pts = np.array(eye_points, dtype=np.int32)
-        x, y, w, h = manual_bounding_rect(pts)
+        x, y, w, h = _bounding_rect(pts)
         x = max(0, x - margin)
         y = max(0, y - margin)
         w = min(gray.shape[1] - x, w + 2 * margin)
@@ -296,7 +282,7 @@ class FacialAnalyzer:
     def detect_iris_by_contour(self, eye_edges):
         if eye_edges.size == 0:
             return None
-        area = manual_largest_contour_area(eye_edges)
+        area = _largest_blob_area(eye_edges)
         return area
 
     def calculate_head_pose(self, shape_np):

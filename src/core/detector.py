@@ -135,7 +135,7 @@ class DrowsinessDetector:
         return self.model_manager.detector(gray)
 
     def start_camera(self):
-        logger.info("Khởi tạo camera...")
+        logger.info("Initializing camera...")
         if self.camera and self.camera.isOpened():
             return
         try:
@@ -143,13 +143,13 @@ class DrowsinessDetector:
             if not self.camera.isOpened():
                 self.camera = cv2.VideoCapture(1, cv2.CAP_DSHOW)
             if not self.camera.isOpened():
-                raise IOError("Không thể mở camera")
+                raise IOError("Cannot open camera")
             self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.CAMERA_WIDTH)
             self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.CAMERA_HEIGHT)
             self.camera.set(cv2.CAP_PROP_FPS, self.config.CAMERA_FPS)
-            logger.info("Khởi tạo camera thành công")
+            logger.info("Camera initialized successfully")
         except Exception as e:
-            logger.error(f"Khởi tạo camera thất bại: {e}")
+            logger.error(f"Camera initialization failed: {e}")
             raise
 
     def stop_camera(self):
@@ -157,7 +157,7 @@ class DrowsinessDetector:
             self.camera.release()
             self.analyzer.reset_display()
             self.camera = None
-            logger.info("Dừng camera")
+            logger.info("Camera stopped")
 
     def detect_blink(self, ear):
         self.ear_history.append(ear)
@@ -222,7 +222,7 @@ class DrowsinessDetector:
             try:
                 self.start_camera()
             except Exception as e:
-                logger.error(f"Không thể khởi tạo lại camera: {e}")
+                logger.error(f"Failed to reinitialize camera: {e}")
                 return None, False, self._empty_metrics()
 
         ret, frame = self.camera.read()

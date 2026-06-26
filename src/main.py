@@ -58,10 +58,10 @@ def run_detection(save_pipeline=False):
     try:
         detector.start_camera()
     except Exception as e:
-        logger.error(f"Không thể khởi tạo camera: {e}")
+        logger.error(f"Failed to initialize camera: {e}")
         return
 
-    logger.info("Nhấn 'q' để thoát, 'p' để bật/tắt lưu pipeline")
+    logger.info("Press 'q' to quit, 'p' to toggle pipeline saving")
 
     cv2.namedWindow("Camera", cv2.WINDOW_NORMAL)
     cv2.resizeWindow("Camera", 640, 480)
@@ -80,7 +80,7 @@ def run_detection(save_pipeline=False):
             break
         elif key == ord('p'):
             detector.save_pipeline = not detector.save_pipeline
-            logger.info(f"Lưu pipeline: {'BẬT' if detector.save_pipeline else 'TẮT'}")
+            logger.info(f"Pipeline saving: {'ON' if detector.save_pipeline else 'OFF'}")
 
     detector.stop_camera()
     cv2.destroyAllWindows()
@@ -91,11 +91,11 @@ def run_calibration():
     try:
         detector.start_camera()
     except Exception as e:
-        logger.error(f"Không thể khởi tạo camera: {e}")
+        logger.error(f"Failed to initialize camera: {e}")
         return
 
-    logger.info("Nhìn thẳng vào camera trong 5 giây để hiệu chỉnh...")
-    logger.info("Nhấn 'q' để bỏ qua hiệu chỉnh")
+    logger.info("Look straight at the camera for 5 seconds for calibration...")
+    logger.info("Press 'q' to skip calibration")
 
     detector.reset_calibration()
     start_time = time.time()
@@ -107,27 +107,26 @@ def run_calibration():
             continue
 
         remaining = duration - (time.time() - start_time)
-        cv2.putText(frame, f"Hiệu chinh: {remaining:.0f}s", (20, 30),
+        cv2.putText(frame, f"Calibration: {remaining:.0f}s", (20, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.putText(frame, f"EAR: {ear:.2f}", (20, 60),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        cv2.imshow("Hieu chinh", frame)
+        cv2.imshow("Calibration", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     success, new_threshold = detector.finalize_calibration()
     if success:
-        logger.info(f"Hiệu chỉnh hoàn tất. Ngưỡng EAR mới: {new_threshold:.3f}")
+        logger.info(f"Calibration complete. New EAR threshold: {new_threshold:.3f}")
     else:
-        logger.warning("Hiệu chỉnh thất bại, dùng ngưỡng mặc định")
+        logger.warning("Calibration failed, using default threshold")
 
     detector.stop_camera()
     cv2.destroyAllWindows()
 
 
 def run_kivy():
-    """Chạy giao diện Kivy Desktop (đầy đủ chức năng)"""
     from src.ui.app import DrowsinessDetectorApp
     DrowsinessDetectorApp().run()
 
