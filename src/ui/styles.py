@@ -38,19 +38,4 @@ Builder.load_string('''
             pos: self.pos
             size: self.size
             radius: [25]
-
-<StatusBar@Widget>:
-    canvas:
-        Color:
-            rgba: 0.2, 0.2, 0.25, 1
-        RoundedRectangle:
-            pos: self.x + (self.width - self.bar_length) / 2, self.y + (self.height - self.bar_height) / 2
-            size: self.bar_length, self.bar_height
-            radius: [10]
-        Color:
-            rgba: self.bar_color
-        RoundedRectangle:
-            pos: self.x + (self.width - self.bar_length) / 2, self.y + (self.height - self.bar_height) / 2
-            size: self.filled_length, self.bar_height
-            radius: [10]
 ''')

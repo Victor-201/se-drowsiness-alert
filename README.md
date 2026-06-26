@@ -1,85 +1,104 @@
-Dưới đây là nội dung file `README.md` được viết dựa trên các tài liệu bạn cung cấp. Nội dung được trình bày rõ ràng, chuyên nghiệp và phù hợp để đưa lên GitHub. Tôi đã tối ưu hóa để người dùng dễ hiểu và có thể bắt đầu sử dụng dự án ngay lập tức.
+# Ứng Dụng Cảnh Báo Phát Hiện Buồn Ngủ Lái Xe
 
----
+Đồ án môn **Xử Lý Ảnh và Thị Giác Máy Tính** — Trường Đại học Giao thông Vận tải TP. Hồ Chí Minh.
 
-# 🚗 Driver Drowsiness Alert App
+## Giới thiệu
 
-Ứng dụng cảnh báo tài xế ngủ gật sử dụng xử lý ảnh và trí tuệ nhân tạo để phát hiện dấu hiệu buồn ngủ hoặc mất tập trung khi lái xe, nhằm giảm thiểu nguy cơ tai nạn giao thông.
+Ứng dụng giám sát khuôn mặt tài xế qua webcam theo thời gian thực, phát hiện các dấu hiệu buồn ngủ (nhắm mắt lâu, ngáp, nghiêng đầu) và phát cảnh báo. Pipeline xử lý ảnh kết hợp các kỹ thuật từ Chương 2–5 của chương trình học.
 
-## 📝 Giới thiệu
-Ứng dụng này giám sát khuôn mặt tài xế trong thời gian thực, phát hiện các dấu hiệu như nhắm mắt lâu hoặc gục đầu, và phát âm thanh cảnh báo khi cần thiết. Dự án được thiết kế để dễ dàng triển khai trên các thiết bị Android.
+## Kỹ thuật CV sử dụng
 
-## 🎯 Tính năng chính
-- 👁️ Nhận diện khuôn mặt và mắt của tài xế.
-- ⏳ Theo dõi thời gian nhắm mắt để phát hiện trạng thái buồn ngủ.
-- 🔔 Phát âm thanh cảnh báo khi tài xế có dấu hiệu ngủ gật.
-- 📊 Ghi lại dữ liệu hành vi (tùy chọn mở rộng).
+| Chương | Kỹ thuật | Chi tiết |
+|--------|----------|----------|
+| Ch. 2 | Xử lý ảnh | Chuyển grayscale, CLAHE cân bằng histogram thích ứng |
+| Ch. 3 | Phát hiện đặc trưng | Haar Cascade (Viola-Jones) phát hiện khuôn mặt, dlib shape predictor 68 landmarks, Canny edge detection trên ROI mắt |
+| Ch. 4 | Phân đoạn ảnh | Trích xuất ROI mắt và miệng dựa trên landmark, phân đoạn ngưỡng |
+| Ch. 5 | Nhận dạng | Phân loại threshold-based: EAR (Eye Aspect Ratio), MAR (Mouth Aspect Ratio), head pose |
 
-## 🔧 Công nghệ sử dụng
-| Công nghệ        | Mục đích sử dụng                          |
-|------------------|-------------------------------------------|
-| Python           | Ngôn ngữ lập trình chính                  |
-| OpenCV           | Xử lý ảnh, nhận diện khuôn mặt và mắt     |
-| TensorFlow/Keras | Mô hình AI phát hiện buồn ngủ (CNN)       |
-| Plyer            | Tạo thông báo và âm thanh cảnh báo        |
-| Kivy/KivyMD      | Thiết kế giao diện ứng dụng Android       |
-| Buildozer        | Đóng gói ứng dụng thành file APK          |
+## Yêu cầu cài đặt
 
-## 📋 Yêu cầu cài đặt
-- Python 3.8+
-- Buildozer (cho Android, chỉ chạy trên Linux)
-- Hệ điều hành: Linux (để build APK), Windows/Mac (để phát triển)
-- Git
+- Python 3.8–3.11
+- Webcam
 
-## 📲 Hướng dẫn cài đặt và chạy
-### 1. Tải mã nguồn
-```bash
-git clone https://github.com/Victor-201/se-drowsiness-alert.git
-cd se-drowsiness-alert
-```
+## Hướng dẫn cài đặt và chạy
 
-### 2. Cài đặt môi trường Python
-Tạo môi trường ảo (khuyến nghị) và cài đặt các thư viện:
 ```bash
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
+venv\Scripts\activate    # Windows
+# source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
+python src/main.py
 ```
 
-### 3. Chạy ứng dụng trên máy tính
+Tài nguyên model `shape_predictor_68_face_landmarks.dat` (~99MB) sẽ được tự động tải khi chạy lần đầu nếu chưa có trong thư mục `data/`.
+
+## Usage
+
+### Các chế độ chạy
+
 ```bash
-python main.py
-```
-- Nhấn "Start" để bắt đầu giám sát.
-- Nhấn "Stop" để dừng.
+# Giao diện Desktop Kivy (mặc định — đầy đủ chức năng)
+python src/main.py
+hoặc
+python run.py
 
-### 4. Build APK cho Android (Linux)
+# Giao diện OpenCV (chế độ xem pipeline)
+python src/main.py --opencv
+
+# Bật lưu ảnh pipeline (chỉ với --opencv)
+python src/main.py --opencv --save-pipeline
+
+# Hiệu chỉnh ngưỡng EAR
+python src/main.py --calibrate
+```
+
+### Phím tắt (OpenCV mode)
+
+| Phím | Chức năng |
+|------|-----------|
+| `q` | Thoát |
+| `p` | Bật/tắt lưu pipeline stages (ảnh trung gian) |
+
+### Jupyter notebook
+
+Mở notebook thí nghiệm và khảo sát tham số:
+
 ```bash
-buildozer init
-buildozer -v android debug
-```
-File APK sẽ được tạo tại: `bin/se-drowsiness-alert-debug.apk`.
-
-## ⚙️ Cấu hình
-- File cấu hình: `src/configs/config.py`
-- Điều chỉnh các thông số như `EAR_THRESHOLD` (ngưỡng EAR), `ALERT_SOUND_FILE` (đường dẫn âm thanh cảnh báo), v.v.
-
-## 📂 Cấu trúc thư mục
-```
-driver-drowsiness-alert-app/
-├── assets/              # File âm thanh cảnh báo
-├── bin/                 # File APK sau khi build
-├── data/                # Mô hình và file calibration
-├── src/                 # Mã nguồn chính
-│   ├── configs/         # Cấu hình
-│   ├── core/            # Logic xử lý
-│   └── ui/              # Giao diện ứng dụng
-├── main.py              # File chạy chính
-├── requirements.txt     # Danh sách thư viện
-└── README.md            # Tài liệu này
+jupyter notebook notebooks/experiments.ipynb
 ```
 
-## 💡 Góp ý và đóng góp
-- Mở issue để báo lỗi hoặc đề xuất tính năng mới.
-- Fork dự án, tạo pull request để đóng góp mã nguồn.
+## Cấu trúc thư mục
+
+```
+se-drowsiness-alert/
+├── assets/               # Âm thanh, hình ảnh, font chữ
+│   ├── fonts/
+│   ├── images/
+│   └── sounds/
+├── data/                 # Model dlib, file hiệu chỉnh
+├── notebooks/            # Jupyter notebook thí nghiệm
+│   ├── experiments.ipynb
+│   └── generate_test_face.py
+├── src/
+│   ├── main.py           # Điểm vào ứng dụng (OpenCV GUI)
+│   ├── configs/          # Cấu hình hệ thống
+│   │   └── config.py
+│   ├── core/             # Logic phát hiện và xử lý
+│   │   ├── detector.py   # Pipeline chính + Haar Cascade face detection
+│   │   ├── facial_analyzer.py  # EAR, MAR, CLAHE, Canny, head pose
+│   │   ├── alert_system.py     # Cảnh báo
+│   │   └── model_manager.py    # Quản lý model dlib
+│   └── evaluation/       # Đánh giá định lượng
+│       └── metrics.py
+├── pipeline_output/      # Ảnh pipeline trung gian (khi bật --save-pipeline)
+├── requirements.txt
+└── README.md
+```
+
+## Cấu hình
+
+Các tham số chính trong `src/configs/config.py`:
+- `EAR_THRESHOLD`: Ngưỡng phát hiện mắt nhắm (mặc định 0.22)
+- `EAR_CONSEC_FRAMES`: Số frame liên tiếp mắt nhắm để báo động (15)
+- `YAWN_THRESHOLD`: Ngưỡng phát hiện ngáp (0.30)
+- `HEAD_TILT_THRESHOLD`: Ngưỡng góc nghiêng đầu (15 độ)

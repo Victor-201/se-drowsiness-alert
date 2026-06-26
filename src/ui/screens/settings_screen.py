@@ -19,7 +19,7 @@ class IconButton(Button):
         # Khởi tạo nút với biểu tượng
         self.source = source
         with self.canvas:
-            self.icon = Image(source=self.source, allow_stretch=True, keep_ratio=True)
+            self.icon = Image(source=self.source)
         self.bind(pos=self.update_icon, size=self.update_icon)
         self.background_normal = ''
         self.background_color = (0, 0, 0, 0)

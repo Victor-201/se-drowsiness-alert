@@ -17,7 +17,7 @@ class IconButton(Button):
         # Khởi tạo nút với biểu tượng
         self.source = source
         with self.canvas:
-            self.icon = Image(source=self.source, allow_stretch=True, keep_ratio=True)
+            self.icon = Image(source=self.source)
         self.bind(pos=self.update_icon, size=self.update_icon)
         self.background_normal = ''
         self.background_color = (0, 0, 0, 0)
@@ -86,7 +86,7 @@ class MainScreen(Screen):
                     halign='left',
                     valign='middle',
                     text_size=(None, None),
-                    padding_x=10
+                    padding=(10, 0)
                 ),
                 'bar': StatusBar(value=0.0, max_value=0.4, threshold=self.app.ear_threshold, reverse_threshold=True,
                                  size_hint=(1, 0.1), bar_length=150)
@@ -99,7 +99,7 @@ class MainScreen(Screen):
                     halign='left',
                     valign='middle',
                     text_size=(None, None),
-                    padding_x=10
+                    padding=(10, 0)
                 ),
                 'bar': StatusBar(value=0.0, max_value=1.0, threshold=0.5, size_hint=(1, 0.1), bar_length=150)
             },
@@ -111,7 +111,7 @@ class MainScreen(Screen):
                     halign='left',
                     valign='middle',
                     text_size=(None, None),
-                    padding_x=10
+                    padding=(10, 0)
                 ),
                 'bar': StatusBar(value=0.0, max_value=45.0, threshold=15.0, size_hint=(1, 0.1), bar_length=150)
             },
@@ -123,7 +123,7 @@ class MainScreen(Screen):
                     halign='left',
                     valign='middle',
                     text_size=(None, None),
-                    padding_x=10
+                    padding=(10, 0)
                 ),
                 'bar': StatusBar(value=0.0, max_value=45.0, threshold=15.0, size_hint=(1, 0.1), bar_length=150)
             },
@@ -135,7 +135,7 @@ class MainScreen(Screen):
                     halign='left',
                     valign='middle',
                     text_size=(None, None),
-                    padding_x=10
+                    padding=(10, 0)
                 ),
                 'bar': StatusBar(value=0.0, max_value=50.0, threshold=30.0, size_hint=(1, 0.1), bar_length=70)
             },
@@ -147,7 +147,7 @@ class MainScreen(Screen):
                     halign='left',
                     valign='middle',
                     text_size=(None, None),
-                    padding_x=10
+                    padding=(10, 0)
                 ),
                 'bar': StatusBar(value=0.0, max_value=50.0, threshold=30.0, size_hint=(1, 0.1), bar_length=70)
             }
