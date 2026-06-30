@@ -5,3 +5,4 @@ Pillow==10.3.0
 matplotlib==3.8.4
 jupyter==1.0.0
 ipykernel==6.29.4
+kivy==2.3.0

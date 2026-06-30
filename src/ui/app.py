@@ -227,7 +227,7 @@ class DrowsinessDetectorApp(App):
 
     def update_calibration(self, dt):
         # Cập nhật quá trình hiệu chỉnh
-        duration = 5
+        duration = self.config.CALIBRATION_DURATION
         elapsed = Clock.get_time() - self.calibration_start_time
         if elapsed >= duration:
             success, new_threshold = self.detector.finalize_calibration()

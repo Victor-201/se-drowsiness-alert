@@ -57,6 +57,34 @@ def manual_resize(img, new_w, new_h):
         return np.clip(np.round(result), 0, 255).astype(img.dtype)
 
 
+def non_max_suppression(boxes, scores, iou_threshold=0.4):
+    if len(boxes) == 0:
+        return [], []
+    boxes = np.array(boxes, dtype=np.float64)
+    scores = np.array(scores, dtype=np.float64)
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    order = scores.argsort()[::-1]
+    keep = []
+    for i in order:
+        if len(keep) == 0:
+            keep.append(i)
+            continue
+        xx1 = np.maximum(x1[i], x1[keep])
+        yy1 = np.maximum(y1[i], y1[keep])
+        xx2 = np.minimum(x2[i], x2[keep])
+        yy2 = np.minimum(y2[i], y2[keep])
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+        overlap = (w * h) / areas[i]
+        if np.all(overlap <= iou_threshold):
+            keep.append(i)
+    return [boxes[i] for i in keep], [scores[i] for i in keep]
+
+
 class PipelineStage:
     def __init__(self, output_dir="pipeline_output"):
         self.output_dir = output_dir
@@ -88,6 +116,8 @@ class DrowsinessDetector:
         self.face_detected = False
         self.drowsiness_start_time = None
         self.face_cascade = self._init_face_cascade()
+        self.face_net_dnn = self._init_face_detector_dnn()
+        self.face_cnn_detector = self._init_face_detector_cnn()
         self.landmark_predictor = self.model_manager.predictor
         self.head_tilt_threshold = self.config.HEAD_TILT_THRESHOLD
         self.head_tilt_frames = self.config.HEAD_TILT_FRAMES
@@ -123,13 +153,80 @@ class DrowsinessDetector:
         logger.info("Initialized Haar cascade face detector")
         return cv2.CascadeClassifier(cascade_path)
 
+    def _init_face_detector_dnn(self):
+        proto = self.config.DNN_PROTOTXT
+        model = self.config.DNN_CAFFEMODEL
+        if not os.path.exists(proto) or not os.path.exists(model):
+            logger.warning("DNN model files not found, downloading...")
+            self.model_manager.download_dnn_models()
+        try:
+            net = cv2.dnn.readNetFromCaffe(proto, model)
+            logger.info("Initialized OpenCV DNN face detector (SSD)")
+            return net
+        except Exception as e:
+            logger.error(f"DNN face detector init failed: {e}")
+            return None
+
+    def detect_faces_dnn(self, frame):
+        if self.face_net_dnn is None:
+            return [], []
+        h, w = frame.shape[:2]
+        blob = cv2.dnn.blobFromImage(
+            cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0)
+        )
+        self.face_net_dnn.setInput(blob)
+        detections = self.face_net_dnn.forward()
+        boxes = []
+        scores = []
+        for i in range(detections.shape[2]):
+            confidence = float(detections[0, 0, i, 2])
+            if confidence > self.config.DNN_CONFIDENCE_THRESHOLD:
+                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                x1, y1, x2, y2 = box.astype(int)
+                x1 = max(0, x1)
+                y1 = max(0, y1)
+                x2 = min(w, x2)
+                y2 = min(h, y2)
+                if (x2 - x1) >= 30 and (y2 - y1) >= 30:
+                    boxes.append([x1, y1, x2, y2])
+                    scores.append(confidence)
+        if boxes:
+            boxes, scores = non_max_suppression(boxes, scores, self.config.DNN_NMS_THRESHOLD)
+        return boxes, scores
+
+    def _init_face_detector_cnn(self):
+        model_path = self.config.CNN_FACE_MODEL
+        if not os.path.exists(model_path):
+            logger.warning("CNN face model not found, downloading...")
+            self.model_manager.download_cnn_face_model()
+        try:
+            cnn_detector = dlib.cnn_face_detection_model_v1(model_path)
+            logger.info("Initialized dlib CNN face detector (MMOD)")
+            return cnn_detector
+        except Exception as e:
+            logger.error(f"CNN face detector init failed: {e}")
+            return None
+
+    def detect_faces_cnn(self, gray):
+        if self.face_cnn_detector is None:
+            return [], []
+        faces = self.face_cnn_detector(gray, 1)
+        boxes = []
+        for f in faces:
+            r = f.rect
+            boxes.append([float(r.left()), float(r.top()), float(r.right()), float(r.bottom())])
+        return boxes
+
     def detect_faces_haar(self, gray):
         if self.face_cascade is None:
             return []
         faces = self.face_cascade.detectMultiScale(
             gray, scaleFactor=1.1, minNeighbors=5, minSize=(80, 80)
         )
-        return faces
+        boxes = []
+        for (x, y, w, h) in faces:
+            boxes.append([x, y, x + w, y + h])
+        return boxes
 
     def detect_faces_dlib(self, gray):
         return self.model_manager.detector(gray)
@@ -238,13 +335,40 @@ class DrowsinessDetector:
         stage_images["01_grayscale"] = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         stage_images["02_clahe"] = cv2.cvtColor(gray_eq, cv2.COLOR_GRAY2BGR)
 
-        faces_haar = self.detect_faces_haar(gray_eq)
+        dnn_boxes, dnn_scores = self.detect_faces_dnn(frame)
+        faces_cnn = self.detect_faces_cnn(gray_eq)
         faces_dlib = self.detect_faces_dlib(gray_eq)
+        faces_haar = self.detect_faces_haar(gray_eq)
 
-        use_haar = len(faces_haar) > 0
-        use_dlib = len(faces_dlib) > 0
+        all_boxes = []
+        all_scores = []
 
-        if not use_haar and not use_dlib:
+        for box in faces_cnn:
+            all_boxes.append(box)
+            all_scores.append(1.0)
+
+        for box, score in zip(dnn_boxes, dnn_scores):
+            all_boxes.append(box)
+            all_scores.append(score)
+
+        for face in faces_dlib:
+            x1, y1, x2, y2 = face.left(), face.top(), face.right(), face.bottom()
+            all_boxes.append([x1, y1, x2, y2])
+            all_scores.append(0.9)
+
+        for hb in faces_haar:
+            all_boxes.append(hb)
+            all_scores.append(0.5)
+
+        if all_boxes:
+            all_boxes, all_scores = non_max_suppression(all_boxes, all_scores, 0.4)
+
+        img_h = frame.shape[0]
+        filtered = [(box, score) for box, score in zip(all_boxes, all_scores)
+                    if box[3] < img_h * 0.65 or score >= 0.9]
+        face_boxes = [fb for fb, _ in filtered] if filtered else all_boxes
+
+        if len(face_boxes) == 0:
             self.no_face_counter += 1
             self.face_detected = False
             stage_images["03_face_detection"] = frame.copy()
@@ -264,16 +388,10 @@ class DrowsinessDetector:
         self.no_face_counter = 0
         self.face_detected = True
 
-        face_box = None
-        if use_haar:
-            x, y, w, h = faces_haar[0]
-            face_box = (x, y, x + w, y + h)
-        else:
-            dlib_face = faces_dlib[0]
-            face_box = (dlib_face.left(), dlib_face.top(), dlib_face.right(), dlib_face.bottom())
-
+        face_box = face_boxes[0]
         face_vis = frame.copy()
-        cv2.rectangle(face_vis, (face_box[0], face_box[1]), (face_box[2], face_box[3]), (0, 255, 0), 2)
+        for fb in face_boxes:
+            cv2.rectangle(face_vis, (fb[0], fb[1]), (fb[2], fb[3]), (0, 255, 0), 2)
         stage_images["03_face_detection"] = face_vis
 
         drowsiness_detected = False
@@ -285,12 +403,15 @@ class DrowsinessDetector:
         pitch_angle = 0.0
         pitch_ratio = 0.0
 
-        dlib_face = faces_dlib[0] if use_dlib else None
-        if dlib_face is None and use_haar:
+        dlib_face = faces_dlib[0] if len(faces_dlib) > 0 else None
+        if dlib_face is None and len(faces_cnn) > 0:
+            cnn_box = faces_cnn[0]
+            dlib_face = dlib.rectangle(int(cnn_box[0]), int(cnn_box[1]), int(cnn_box[2]), int(cnn_box[3]))
+        if dlib_face is None:
             rect = dlib.rectangle(int(face_box[0]), int(face_box[1]), int(face_box[2]), int(face_box[3]))
-            dlib_faces = self.detect_faces_dlib(gray_eq)
-            if dlib_faces:
-                dlib_face = dlib_faces[0]
+            refaces = self.detect_faces_dlib(gray_eq)
+            if refaces:
+                dlib_face = refaces[0]
 
         if dlib_face:
             shape = self.landmark_predictor(gray_eq, dlib_face)

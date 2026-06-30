@@ -87,6 +87,7 @@ def run_detection(save_pipeline=False):
 
 
 def run_calibration():
+    config = Config()
     detector = DrowsinessDetector()
     try:
         detector.start_camera()
@@ -94,12 +95,12 @@ def run_calibration():
         logger.error(f"Failed to initialize camera: {e}")
         return
 
-    logger.info("Look straight at the camera for 5 seconds for calibration...")
+    logger.info(f"Look straight at the camera for {config.CALIBRATION_DURATION} seconds for calibration...")
     logger.info("Press 'q' to skip calibration")
 
     detector.reset_calibration()
     start_time = time.time()
-    duration = 5
+    duration = config.CALIBRATION_DURATION
 
     while time.time() - start_time < duration:
         frame, ear = detector.process_calibration_frame()

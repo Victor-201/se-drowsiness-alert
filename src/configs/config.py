@@ -20,6 +20,7 @@ class Config:
     NO_FACE_ALERT_FRAMES = 20
     NOTIFICATION_DURATION = 3.0
 
+    CALIBRATION_DURATION = 5
     ALERT_COOLDOWN = 3
     ALERT_STOP_DELAY = 1.0
     CAMERA_ID = 0
@@ -42,7 +43,14 @@ class Config:
     ALERT_SOUND_FILE = os.path.join(SOUND_ALERT_DIR, "alert.wav")
     FATIGUE_SOUND_FILE = os.path.join(SOUND_NOTIFICATION_DIR, "canh_bao_buon_ngu.mp3")
     FONT_DIR = os.path.join(ASSETS_DIR, "fonts")
-    FONT_PATH = os.path.join(FONT_DIR, "arial.ttf")
+    FONT_PATH = os.path.join(FONT_DIR, "ARIAL.TTF")
+    DNN_CONFIDENCE_THRESHOLD = 0.5
+    DNN_NMS_THRESHOLD = 0.4
+    DNN_PROTOTXT = os.path.join(DATA_DIR, "deploy.prototxt")
+    DNN_CAFFEMODEL = os.path.join(DATA_DIR, "res10_300x300_ssd_iter_140000.caffemodel")
+    CNN_FACE_MODEL = os.path.join(DATA_DIR, "mmod_human_face_detector.dat")
+    CNN_FACE_MODEL_URL = "http://dlib.net/files/mmod_human_face_detector.dat.bz2"
+
     FACIAL_LANDMARKS_INDEXES = {
         "right_eye": (36, 42),
         "left_eye": (42, 48),

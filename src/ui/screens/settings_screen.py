@@ -8,26 +8,10 @@ from kivy.uix.label import Label
 from kivy.uix.spinner import Spinner
 from kivy.uix.slider import Slider
 from kivy.core.audio import SoundLoader
-from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
+from src.ui.widgets import IconButton
 import cv2
-
-class IconButton(Button):
-    def __init__(self, source, **kwargs):
-        super().__init__(**kwargs)
-        # Khởi tạo nút với biểu tượng
-        self.source = source
-        with self.canvas:
-            self.icon = Image(source=self.source)
-        self.bind(pos=self.update_icon, size=self.update_icon)
-        self.background_normal = ''
-        self.background_color = (0, 0, 0, 0)
-
-    def update_icon(self, *args):
-        # Cập nhật vị trí và kích thước biểu tượng
-        self.icon.pos = self.pos
-        self.icon.size = self.size
 
 class SettingsScreen(Screen):
     def __init__(self, app_instance, **kwargs):
@@ -187,6 +171,7 @@ class SettingsScreen(Screen):
             if camera_changed and self.app.camera_initialized:
                 self.app.detector.stop_camera()
                 self.app.config.CAMERA_ID = new_camera_index
+                self.app.detector.config.CAMERA_ID = new_camera_index
                 self.app.detector.start_camera()
                 logging.info(f"Chuyển camera: {new_camera_index}")
 

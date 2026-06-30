@@ -9,23 +9,8 @@ from kivy.graphics import Color, Rectangle, PushMatrix, Rotate, PopMatrix
 from kivy.properties import NumericProperty, ListProperty, BooleanProperty
 from kivy.uix.image import Image
 from kivy.clock import Clock
+from src.ui.widgets import IconButton
 import time
-
-class IconButton(Button):
-    def __init__(self, source, **kwargs):
-        super().__init__(**kwargs)
-        # Khởi tạo nút với biểu tượng
-        self.source = source
-        with self.canvas:
-            self.icon = Image(source=self.source)
-        self.bind(pos=self.update_icon, size=self.update_icon)
-        self.background_normal = ''
-        self.background_color = (0, 0, 0, 0)
-
-    def update_icon(self, *args):
-        # Cập nhật vị trí và kích thước biểu tượng
-        self.icon.pos = self.pos
-        self.icon.size = self.size
 
 class StatusBar(Widget):
     value = NumericProperty(0.0)
@@ -101,7 +86,7 @@ class MainScreen(Screen):
                     text_size=(None, None),
                     padding=(10, 0)
                 ),
-                'bar': StatusBar(value=0.0, max_value=1.0, threshold=0.5, size_hint=(1, 0.1), bar_length=150)
+                'bar': StatusBar(value=0.0, max_value=1.0, threshold=self.app.detector.config.YAWN_THRESHOLD, size_hint=(1, 0.1), bar_length=150)
             },
             'roll_angle': {
                 'label': Label(
@@ -137,7 +122,7 @@ class MainScreen(Screen):
                     text_size=(None, None),
                     padding=(10, 0)
                 ),
-                'bar': StatusBar(value=0.0, max_value=50.0, threshold=30.0, size_hint=(1, 0.1), bar_length=70)
+                'bar': StatusBar(value=0.0, max_value=50.0, threshold=self.app.detector.config.BLINK_PER_MINUTE_THRESHOLD, size_hint=(1, 0.1), bar_length=70)
             },
             'yawn_count': {
                 'label': Label(
@@ -149,7 +134,7 @@ class MainScreen(Screen):
                     text_size=(None, None),
                     padding=(10, 0)
                 ),
-                'bar': StatusBar(value=0.0, max_value=50.0, threshold=30.0, size_hint=(1, 0.1), bar_length=70)
+                'bar': StatusBar(value=0.0, max_value=50.0, threshold=self.app.detector.config.YAWN_PER_MINUTE_THRESHOLD, size_hint=(1, 0.1), bar_length=70)
             }
         }
         self.scanning = False
@@ -325,8 +310,8 @@ class MainScreen(Screen):
         mar_value = safe_float(mar, None)
         self.metrics_widgets['mar']['label'].text = f'Cỡ miệng: {mar:.2f}' if mar is not None else 'Cỡ miệng: --'
         self.metrics_widgets['mar']['label'].color = [1, 0, 0,
-                                                      1] if is_alert and mar is not None and mar_value > 0.5 else [1, 1,
-                                                                                                                   1, 1]
+                                                      1] if is_alert and mar is not None and mar_value > self.app.detector.config.YAWN_THRESHOLD else [1, 1,
+                                                                                                                                                        1, 1]
         if mar is not None:
             self.metrics_widgets['mar']['bar'].value = mar_value
         roll_value = safe_float(roll_angle, None)

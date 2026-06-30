@@ -71,26 +71,37 @@ jupyter notebook notebooks/experiments.ipynb
 
 ```
 se-drowsiness-alert/
-├── assets/               # Âm thanh, hình ảnh, font chữ
+├── assets/                   # Âm thanh, hình ảnh, font chữ
 │   ├── fonts/
 │   ├── images/
 │   └── sounds/
-├── data/                 # Model dlib, file hiệu chỉnh
-├── notebooks/            # Jupyter notebook thí nghiệm
+├── data/                     # Model dlib, file hiệu chỉnh, cài đặt
+├── notebooks/                # Jupyter notebook thí nghiệm + ảnh test
 │   ├── experiments.ipynb
 │   └── generate_test_face.py
 ├── src/
-│   ├── main.py           # Điểm vào ứng dụng (OpenCV GUI)
-│   ├── configs/          # Cấu hình hệ thống
-│   │   └── config.py
-│   ├── core/             # Logic phát hiện và xử lý
-│   │   ├── detector.py   # Pipeline chính + Haar Cascade face detection
-│   │   ├── facial_analyzer.py  # EAR, MAR, CLAHE, Canny, head pose
-│   │   ├── alert_system.py     # Cảnh báo
-│   │   └── model_manager.py    # Quản lý model dlib
-│   └── evaluation/       # Đánh giá định lượng
-│       └── metrics.py
-├── pipeline_output/      # Ảnh pipeline trung gian (khi bật --save-pipeline)
+│   ├── __init__.py
+│   ├── main.py               # Điểm vào ứng dụng (Kivy/OpenCV/Calibrate)
+│   ├── configs/              # Cấu hình hệ thống
+│   │   ├── config.py         #   Config — tham số mặc định
+│   │   └── settings.py       #   Settings — cài đặt người dùng
+│   ├── core/                 # Logic phát hiện và xử lý
+│   │   ├── detector.py       #   Pipeline chính + Haar Cascade face detection
+│   │   ├── facial_analyzer.py#   EAR, MAR, CLAHE, Canny, head pose
+│   │   ├── alert_system.py   #   Cảnh báo overlay + âm thanh
+│   │   └── model_manager.py  #   Quản lý model dlib (tự động tải)
+│   ├── evaluation/           # Đánh giá định lượng
+│   │   └── metrics.py
+│   ├── exceptions/           # Exception classes
+│   │   └── app_exceptions.py
+│   └── ui/                   # Giao diện Desktop Kivy
+│       ├── app.py            #   App chính (Kivy)
+│       ├── widgets.py        #   Widget dùng chung (IconButton)
+│       ├── styles.py         #   KV style strings
+│       └── screens/
+│           ├── main_screen.py#   Màn hình chính
+│           └── settings_screen.py # Màn hình cài đặt
+├── pipeline_output/          # Ảnh pipeline trung gian (khi bật --save-pipeline)
 ├── requirements.txt
 └── README.md
 ```
@@ -101,4 +112,10 @@ Các tham số chính trong `src/configs/config.py`:
 - `EAR_THRESHOLD`: Ngưỡng phát hiện mắt nhắm (mặc định 0.22)
 - `EAR_CONSEC_FRAMES`: Số frame liên tiếp mắt nhắm để báo động (15)
 - `YAWN_THRESHOLD`: Ngưỡng phát hiện ngáp (0.30)
+- `YAWN_CONSEC_FRAMES`: Số frame liên tiếp ngáp để xác nhận (5)
 - `HEAD_TILT_THRESHOLD`: Ngưỡng góc nghiêng đầu (15 độ)
+- `HEAD_TILT_FRAMES`: Số frame liên tiếp nghiêng đầu để báo động (20)
+- `BLINK_PER_MINUTE_THRESHOLD`: Tần suất nháy mắt/phút để cảnh báo mệt mỏi (25)
+- `YAWN_PER_MINUTE_THRESHOLD`: Tần suất ngáp/phút để cảnh báo mệt mỏi (3)
+- `NO_FACE_ALERT_FRAMES`: Số frame không thấy mặt để báo mất tập trung (20)
+- `CALIBRATION_DURATION`: Thời gian hiệu chỉnh (giây, mặc định 5)
