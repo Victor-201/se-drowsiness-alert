@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class MetricsCollector:
-    def __init__(self, ear_threshold=0.22, mar_threshold=0.3, head_tilt_threshold=15.0,
+    def __init__(self, ear_threshold=0.22, mar_threshold=0.3, head_tilt_threshold=45.0,
                  ear_consec_frames=15, head_tilt_frames=20):
         self.ear_threshold = ear_threshold
         self.mar_threshold = mar_threshold
@@ -42,7 +42,7 @@ class MetricsCollector:
             self.eye_counter = 0
         drowsy_pred = self.eye_counter >= self.ear_consec_frames
 
-        if roll_angle > self.head_tilt_threshold or pitch_angle > self.head_tilt_threshold:
+        if abs(roll_angle) > self.head_tilt_threshold or abs(pitch_angle) > self.head_tilt_threshold:
             self.head_tilt_counter += 1
         else:
             self.head_tilt_counter = max(0, self.head_tilt_counter - 1)

@@ -305,7 +305,7 @@ class FacialAnalyzer:
         pitch_ratio = nose_height / face_height if face_height > 0 else 0
         pitch_angle = (pitch_ratio - 0.35) * 180
 
-        return abs(roll_angle), abs(pitch_angle), pitch_ratio
+        return roll_angle, pitch_angle, pitch_ratio
 
     def reset_display(self):
         import cv2

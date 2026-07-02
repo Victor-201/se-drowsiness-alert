@@ -32,7 +32,6 @@ class StatusBar(Widget):
         self.update_bar()
 
     def update_bar(self, *args):
-        # Cập nhật thanh trạng thái
         self.canvas.clear()
         with self.canvas:
             bar_x = self.x + (self.width - self.bar_length) / 2
@@ -42,10 +41,8 @@ class StatusBar(Widget):
             else:
                 is_safe = self.value < self.threshold
             if not is_safe:
-                self.blink_state = 0.5 + 0.5 * abs(np.sin(time.time() * 5))
-                self.bar_color = [1, 0, 0, self.blink_state]
+                self.bar_color = [1, 0, 0, 1]
             else:
-                self.blink_state = 1.0
                 self.bar_color = [0, 1, 0, 1]
             filled_length = min(int(self.bar_length * (self.value / self.max_value)),
                                 self.bar_length) if self.max_value > 0 else 0
@@ -98,7 +95,7 @@ class MainScreen(Screen):
                     text_size=(None, None),
                     padding=(10, 0)
                 ),
-                'bar': StatusBar(value=0.0, max_value=45.0, threshold=15.0, size_hint=(1, 0.1), bar_length=150)
+                'bar': StatusBar(value=0.0, max_value=45.0, threshold=self.app.detector.head_tilt_threshold, size_hint=(1, 0.1), bar_length=150)
             },
             'pitch_angle': {
                 'label': Label(
@@ -110,7 +107,7 @@ class MainScreen(Screen):
                     text_size=(None, None),
                     padding=(10, 0)
                 ),
-                'bar': StatusBar(value=0.0, max_value=45.0, threshold=15.0, size_hint=(1, 0.1), bar_length=150)
+                'bar': StatusBar(value=0.0, max_value=45.0, threshold=self.app.detector.head_tilt_threshold, size_hint=(1, 0.1), bar_length=150)
             },
             'blink_count': {
                 'label': Label(
@@ -318,18 +315,18 @@ class MainScreen(Screen):
         self.metrics_widgets['roll_angle'][
             'label'].text = f'Góc nghiêng: {roll_angle:.1f}°' if roll_angle is not None else 'Góc nghiêng: --'
         self.metrics_widgets['roll_angle']['label'].color = [1, 0, 0,
-                                                             1] if is_alert and roll_angle is not None and roll_value > 15.0 else [
+                                                             1] if is_alert and roll_angle is not None and abs(roll_value) > self.app.detector.head_tilt_threshold else [
             1, 1, 1, 1]
         if roll_angle is not None:
-            self.metrics_widgets['roll_angle']['bar'].value = roll_value
+            self.metrics_widgets['roll_angle']['bar'].value = abs(roll_value)
         pitch_value = safe_float(pitch_angle, None)
         self.metrics_widgets['pitch_angle'][
             'label'].text = f'Góc cúi: {pitch_angle:.1f}°' if pitch_angle is not None else 'Góc cúi: --'
         self.metrics_widgets['pitch_angle']['label'].color = [1, 0, 0,
-                                                              1] if is_alert and pitch_angle is not None and pitch_value > 15.0 else [
+                                                              1] if is_alert and pitch_angle is not None and abs(pitch_value) > self.app.detector.head_tilt_threshold else [
             1, 1, 1, 1]
         if pitch_angle is not None:
-            self.metrics_widgets['pitch_angle']['bar'].value = pitch_value
+            self.metrics_widgets['pitch_angle']['bar'].value = abs(pitch_value)
         blink_value = safe_float(blink_count, 0)
         self.metrics_widgets['blink_count'][
             'label'].text = f'Nháy mắt: {int(blink_count)}' if blink_count is not None else 'Nháy mắt: 0'

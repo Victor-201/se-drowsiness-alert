@@ -50,30 +50,48 @@ class Settings:
         return sounds
 
     def _try_camera(self, index):
-        try:
-            cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-            if cap.isOpened():
+        backends = [cv2.CAP_ANY, cv2.CAP_DSHOW, cv2.CAP_MSMF]
+        for backend in backends:
+            try:
+                cap = cv2.VideoCapture(index, backend)
+                if cap.isOpened():
+                    cap.release()
+                    return True
                 cap.release()
-                return True
-            cap.release()
-        except Exception:
-            pass
+            except Exception:
+                pass
         return False
 
     def get_available_cameras(self):
+        if hasattr(self, '_camera_cache'):
+            return self._camera_cache
         cameras = []
+        max_probe = 5
+        consecutive_fails = 0
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             futures = {}
-            for i in range(10):
+            for i in range(max_probe):
                 future = executor.submit(self._try_camera, i)
                 futures[future] = i
-            for future in concurrent.futures.as_completed(futures, timeout=3.0):
-                idx = futures[future]
-                try:
-                    if future.result():
-                        cameras.append(idx)
-                except Exception:
-                    pass
+            try:
+                for future in concurrent.futures.as_completed(futures, timeout=2.0):
+                    idx = futures[future]
+                    try:
+                        if future.result():
+                            cameras.append(idx)
+                            consecutive_fails = 0
+                        else:
+                            consecutive_fails += 1
+                    except Exception:
+                        consecutive_fails += 1
+                    if consecutive_fails >= 3:
+                        for f in futures:
+                            f.cancel()
+                        break
+            except concurrent.futures.TimeoutError:
+                pass
+        cameras.sort()
+        self._camera_cache = cameras
         return cameras
 
     def save(self):

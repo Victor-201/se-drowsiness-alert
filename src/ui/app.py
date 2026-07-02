@@ -175,6 +175,7 @@ class DrowsinessDetectorApp(App):
             self.status_label.text = 'Lỗi: Camera chưa khởi tạo'
             logging.error("Không thể bắt đầu giám sát: Camera chưa khởi tạo")
             return
+        self.detector.reset_head_reference()
         self.is_monitoring = True
         self.status_label.text = 'Trạng thái: Đang giám sát'
         self.background_color = [0, 0, 0, 1]
@@ -251,9 +252,10 @@ class DrowsinessDetectorApp(App):
             return
         frame, ear = self.detector.process_calibration_frame()
         if frame is not None:
-            texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
-            texture.blit_buffer(cv2.flip(frame, 0).tobytes(), colorfmt='bgr', bufferfmt='ubyte')
-            self.image.texture = texture
+            if not hasattr(self, '_texture') or self._texture is None or self._texture.size != (frame.shape[1], frame.shape[0]):
+                self._texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
+            self._texture.blit_buffer(cv2.flip(frame, 0).tobytes(), colorfmt='bgr', bufferfmt='ubyte')
+            self.image.texture = self._texture
             remaining = int(duration - elapsed)
             self.status_label.text = f'Đang hiệu chỉnh... {remaining}s (Ngưỡng mắt: {ear:.2f})'
             main_screen = self.screen_manager.get_screen('main')
@@ -285,23 +287,18 @@ class DrowsinessDetectorApp(App):
                 self.last_metrics['blink_count'] = blink_count
                 self.last_metrics['yawn_count'] = yawn_count
 
-            if frame is None:
-                logger.warning("Received None frame from process_frame")
+            if frame is None or not isinstance(frame, np.ndarray):
                 self.status_label.text = 'Lỗi: Không lấy được khung hình'
+                if not isinstance(frame, np.ndarray):
+                    self.status_label.text = 'Lỗi: Khung hình không hợp lệ'
                 main_screen = self.screen_manager.get_screen('main')
                 main_screen.update_metrics(ear, mar, roll_angle, pitch_angle, blink_count, yawn_count)
                 return
 
-            if not isinstance(frame, np.ndarray):
-                logger.error(f"Frame is not a NumPy array, got type {type(frame)}: {frame}")
-                self.status_label.text = 'Lỗi: Khung hình không hợp lệ'
-                main_screen = self.screen_manager.get_screen('main')
-                main_screen.update_metrics(ear, mar, roll_angle, pitch_angle, blink_count, yawn_count)
-                return
-
-            texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
-            texture.blit_buffer(cv2.flip(frame, 0).tobytes(), colorfmt='bgr', bufferfmt='ubyte')
-            self.image.texture = texture
+            if not hasattr(self, '_texture') or self._texture is None or self._texture.size != (frame.shape[1], frame.shape[0]):
+                self._texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
+            self._texture.blit_buffer(cv2.flip(frame, 0).tobytes(), colorfmt='bgr', bufferfmt='ubyte')
+            self.image.texture = self._texture
 
             main_screen = self.screen_manager.get_screen('main')
             main_screen.update_metrics(ear, mar, roll_angle, pitch_angle, blink_count, yawn_count)

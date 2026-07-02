@@ -122,6 +122,8 @@ class DrowsinessDetector:
         self.head_tilt_threshold = self.config.HEAD_TILT_THRESHOLD
         self.head_tilt_frames = self.config.HEAD_TILT_FRAMES
         self.head_tilt_counter = 0
+        self.reference_roll = None
+        self.reference_pitch = None
         self.blink_total = 0
         self.blink_per_minute_threshold = self.config.BLINK_PER_MINUTE_THRESHOLD
         self.yawn_threshold = self.config.YAWN_THRESHOLD
@@ -192,6 +194,9 @@ class DrowsinessDetector:
                     scores.append(confidence)
         if boxes:
             boxes, scores = non_max_suppression(boxes, scores, self.config.DNN_NMS_THRESHOLD)
+        if boxes:
+            boxes = [[int(x) for x in b] for b in boxes]
+            scores = [float(s) for s in scores]
         return boxes, scores
 
     def _init_face_detector_cnn(self):
@@ -209,12 +214,12 @@ class DrowsinessDetector:
 
     def detect_faces_cnn(self, gray):
         if self.face_cnn_detector is None:
-            return [], []
+            return []
         faces = self.face_cnn_detector(gray, 1)
         boxes = []
         for f in faces:
             r = f.rect
-            boxes.append([float(r.left()), float(r.top()), float(r.right()), float(r.bottom())])
+            boxes.append([int(r.left()), int(r.top()), int(r.right()), int(r.bottom())])
         return boxes
 
     def detect_faces_haar(self, gray):
@@ -225,7 +230,7 @@ class DrowsinessDetector:
         )
         boxes = []
         for (x, y, w, h) in faces:
-            boxes.append([x, y, x + w, y + h])
+            boxes.append([int(x), int(y), int(x + w), int(y + h)])
         return boxes
 
     def detect_faces_dlib(self, gray):
@@ -235,19 +240,25 @@ class DrowsinessDetector:
         logger.info("Initializing camera...")
         if self.camera and self.camera.isOpened():
             return
-        try:
-            self.camera = cv2.VideoCapture(self.config.CAMERA_ID)
-            if not self.camera.isOpened():
-                self.camera = cv2.VideoCapture(1, cv2.CAP_DSHOW)
-            if not self.camera.isOpened():
-                raise IOError("Cannot open camera")
-            self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.CAMERA_WIDTH)
-            self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.CAMERA_HEIGHT)
-            self.camera.set(cv2.CAP_PROP_FPS, self.config.CAMERA_FPS)
-            logger.info("Camera initialized successfully")
-        except Exception as e:
-            logger.error(f"Camera initialization failed: {e}")
-            raise
+        backends = [cv2.CAP_ANY, cv2.CAP_DSHOW, cv2.CAP_MSMF]
+        for index in [self.config.CAMERA_ID, 1]:
+            for backend in backends:
+                try:
+                    self.camera = cv2.VideoCapture(index, backend)
+                    if self.camera.isOpened():
+                        break
+                    self.camera.release()
+                    self.camera = None
+                except Exception:
+                    self.camera = None
+            if self.camera and self.camera.isOpened():
+                break
+        if not self.camera or not self.camera.isOpened():
+            raise IOError("Cannot open camera")
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.config.CAMERA_WIDTH)
+        self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config.CAMERA_HEIGHT)
+        self.camera.set(cv2.CAP_PROP_FPS, self.config.CAMERA_FPS)
+        logger.info("Camera initialized successfully")
 
     def stop_camera(self):
         if self.camera and self.camera.isOpened():
@@ -326,8 +337,8 @@ class DrowsinessDetector:
         if not ret or frame is None:
             return None, False, self._empty_metrics()
 
-        frame = manual_resize(frame, self.config.CAMERA_WIDTH, self.config.CAMERA_HEIGHT)
-        gray = manual_bgr_to_gray(frame)
+        frame = cv2.resize(frame, (self.config.CAMERA_WIDTH, self.config.CAMERA_HEIGHT))
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         stage_images = {}
 
@@ -335,40 +346,36 @@ class DrowsinessDetector:
         stage_images["01_grayscale"] = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         stage_images["02_clahe"] = cv2.cvtColor(gray_eq, cv2.COLOR_GRAY2BGR)
 
-        dnn_boxes, dnn_scores = self.detect_faces_dnn(frame)
-        faces_cnn = self.detect_faces_cnn(gray_eq)
-        faces_dlib = self.detect_faces_dlib(gray_eq)
-        faces_haar = self.detect_faces_haar(gray_eq)
+        face_boxes = []
+        face_scores = []
 
-        all_boxes = []
-        all_scores = []
+        try:
+            dnn_boxes, dnn_scores = self.detect_faces_dnn(frame)
+            if dnn_boxes:
+                face_boxes = dnn_boxes
+                face_scores = dnn_scores
+        except Exception as e:
+            logger.warning(f"DNN face detection failed: {e}")
 
-        for box in faces_cnn:
-            all_boxes.append(box)
-            all_scores.append(1.0)
+        if not face_boxes:
+            try:
+                faces_dlib = self.detect_faces_dlib(gray_eq)
+                if faces_dlib:
+                    face_boxes = [[f.left(), f.top(), f.right(), f.bottom()] for f in faces_dlib]
+                    face_scores = [0.9] * len(faces_dlib)
+            except Exception as e:
+                logger.warning(f"dlib face detection failed: {e}")
 
-        for box, score in zip(dnn_boxes, dnn_scores):
-            all_boxes.append(box)
-            all_scores.append(score)
+        if not face_boxes:
+            try:
+                faces_haar = self.detect_faces_haar(gray_eq)
+                if faces_haar:
+                    face_boxes = faces_haar
+                    face_scores = [0.5] * len(faces_haar)
+            except Exception as e:
+                logger.warning(f"Haar face detection failed: {e}")
 
-        for face in faces_dlib:
-            x1, y1, x2, y2 = face.left(), face.top(), face.right(), face.bottom()
-            all_boxes.append([x1, y1, x2, y2])
-            all_scores.append(0.9)
-
-        for hb in faces_haar:
-            all_boxes.append(hb)
-            all_scores.append(0.5)
-
-        if all_boxes:
-            all_boxes, all_scores = non_max_suppression(all_boxes, all_scores, 0.4)
-
-        img_h = frame.shape[0]
-        filtered = [(box, score) for box, score in zip(all_boxes, all_scores)
-                    if box[3] < img_h * 0.65 or score >= 0.9]
-        face_boxes = [fb for fb, _ in filtered] if filtered else all_boxes
-
-        if len(face_boxes) == 0:
+        if not face_boxes:
             self.no_face_counter += 1
             self.face_detected = False
             stage_images["03_face_detection"] = frame.copy()
@@ -403,15 +410,7 @@ class DrowsinessDetector:
         pitch_angle = 0.0
         pitch_ratio = 0.0
 
-        dlib_face = faces_dlib[0] if len(faces_dlib) > 0 else None
-        if dlib_face is None and len(faces_cnn) > 0:
-            cnn_box = faces_cnn[0]
-            dlib_face = dlib.rectangle(int(cnn_box[0]), int(cnn_box[1]), int(cnn_box[2]), int(cnn_box[3]))
-        if dlib_face is None:
-            rect = dlib.rectangle(int(face_box[0]), int(face_box[1]), int(face_box[2]), int(face_box[3]))
-            refaces = self.detect_faces_dlib(gray_eq)
-            if refaces:
-                dlib_face = refaces[0]
+        dlib_face = dlib.rectangle(int(face_box[0]), int(face_box[1]), int(face_box[2]), int(face_box[3]))
 
         if dlib_face:
             shape = self.landmark_predictor(gray_eq, dlib_face)
@@ -426,6 +425,10 @@ class DrowsinessDetector:
             ear = (left_ear + right_ear) / 2.0
             mar = self.analyzer.calculate_mar(mouth)
             roll_angle, pitch_angle, pitch_ratio = self.analyzer.calculate_head_pose(shape_np)
+
+            if self.reference_roll is None:
+                self.reference_roll = roll_angle
+                self.reference_pitch = pitch_angle
 
             edges_left = self.analyzer.apply_canny_on_eye(gray_eq, left_eye, 50, 150)
             edges_right = self.analyzer.apply_canny_on_eye(gray_eq, right_eye, 50, 150)
@@ -457,7 +460,9 @@ class DrowsinessDetector:
             yawn_frequent = self.check_yawn_frequency()
             fatigue_detected = blink_frequent or yawn_frequent
 
-            head_tilted = roll_angle > self.head_tilt_threshold or pitch_angle > self.head_tilt_threshold
+            delta_roll = abs(roll_angle - self.reference_roll) if self.reference_roll is not None else 0
+            delta_pitch = abs(pitch_angle - self.reference_pitch) if self.reference_pitch is not None else 0
+            head_tilted = delta_roll > self.head_tilt_threshold or delta_pitch > self.head_tilt_threshold
             if head_tilted:
                 self.head_tilt_counter += 1
                 if self.head_tilt_counter >= self.head_tilt_frames:
@@ -527,14 +532,18 @@ class DrowsinessDetector:
     def reset_calibration(self):
         self.calibration_ear_values = []
 
+    def reset_head_reference(self):
+        self.reference_roll = None
+        self.reference_pitch = None
+
     def process_calibration_frame(self):
         if not self.camera or not self.camera.isOpened():
             return None, 0.0
         ret, frame = self.camera.read()
         if not ret or frame is None:
             return None, 0.0
-        frame = manual_resize(frame, self.config.CAMERA_WIDTH, self.config.CAMERA_HEIGHT)
-        gray = manual_bgr_to_gray(frame)
+        frame = cv2.resize(frame, (self.config.CAMERA_WIDTH, self.config.CAMERA_HEIGHT))
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray_eq = self.analyzer.apply_clahe(gray)
         faces = self.detect_faces_dlib(gray_eq)
         ear = 0.0
